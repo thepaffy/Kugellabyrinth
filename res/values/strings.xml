@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Kugellabyrinth</string>
+    <string name="hello_world">Hello world!</string>
+    <string name="title_activity_play">PlayActivity</string>
+    <string name="title_activity_highscore">HighscoreActivity</string>
+    <string name="play_button">Play</string>
+    <string name="highscore_button">Highscore</string>
+    <string name="settings_button">Settings</string>
+    
+    <string name="dummy_content">Dummy Content</string>
+    <string name="dummy_button">Dummy Button</string>
+</resources>

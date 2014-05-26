@@ -8,7 +8,6 @@ import android.content.Intent;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
-import android.view.MotionEvent;
 import android.view.View;
 
 /**
@@ -18,18 +17,6 @@ import android.view.View;
  * @see SystemUiHider
  */
 public class PlayActivity extends Activity {
-	/**
-	 * Whether or not the system UI should be auto-hidden after
-	 * {@link #AUTO_HIDE_DELAY_MILLIS} milliseconds.
-	 */
-	private static final boolean AUTO_HIDE = true;
-
-	/**
-	 * If {@link #AUTO_HIDE} is set, the number of milliseconds to wait after
-	 * user interaction before hiding the system UI.
-	 */
-	private static final int AUTO_HIDE_DELAY_MILLIS = 3000;
-
 	/**
 	 * If set, will toggle the system UI visibility upon interaction. Otherwise,
 	 * will show the system UI visibility upon interaction.
@@ -92,11 +79,6 @@ public class PlayActivity extends Activity {
 							controlsView.setVisibility(visible ? View.VISIBLE
 									: View.GONE);
 						}
-
-						if (visible && AUTO_HIDE) {
-							// Schedule a hide().
-							delayedHide(AUTO_HIDE_DELAY_MILLIS);
-						}
 					}
 				});
 
@@ -111,12 +93,6 @@ public class PlayActivity extends Activity {
 				}
 			}
 		});
-
-		// Upon interacting with UI controls, delay any scheduled hide()
-		// operations to prevent the jarring behavior of controls going away
-		// while interacting with the UI.
-		findViewById(R.id.dummy_button).setOnTouchListener(
-				mDelayHideTouchListener);
 	}
 
 	@Override
@@ -128,21 +104,6 @@ public class PlayActivity extends Activity {
 		// are available.
 		delayedHide(100);
 	}
-
-	/**
-	 * Touch listener to use for in-layout UI controls to delay hiding the
-	 * system UI. This is to prevent the jarring behavior of controls going away
-	 * while interacting with activity UI.
-	 */
-	View.OnTouchListener mDelayHideTouchListener = new View.OnTouchListener() {
-		@Override
-		public boolean onTouch(View view, MotionEvent motionEvent) {
-			if (AUTO_HIDE) {
-				delayedHide(AUTO_HIDE_DELAY_MILLIS);
-			}
-			return false;
-		}
-	};
 
 	Handler mHideHandler = new Handler();
 	Runnable mHideRunnable = new Runnable() {
@@ -161,12 +122,12 @@ public class PlayActivity extends Activity {
 		mHideHandler.postDelayed(mHideRunnable, delayMillis);
 	}
 	
-	public void abort() {
+	public void abort(View view) {
 		Intent intent = new Intent(this, StartActivity.class);
 		startActivity(intent);
 	}
 	
-	public void highscore() {
+	public void highscore(View view) {
 		Intent intent = new Intent(this, HighscoreActivity.class);
 		startActivity(intent);
 	}

@@ -3,6 +3,7 @@ package org.thepaffy.kugellabyrinth;
 import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
+import android.view.View;
 
 public class StartActivity extends Activity {
 
@@ -12,18 +13,18 @@ public class StartActivity extends Activity {
 		setContentView(R.layout.activity_start);
 	}
 	
-	public void play() {
+	public void play(View view) {
 		Intent intent = new Intent(this, PlayActivity.class);
 		startActivity(intent);
 	}
 	
-	public void settings() {
+	public void settings(View view) {
 		Intent intent = new Intent(this, SettingsActivity.class);
 		startActivity(intent);
 	}
 	
-	public void highscore() {
-		Intent intent = new Intent(this, SettingsActivity.class);
+	public void highscore(View view) {
+		Intent intent = new Intent(this, HighscoreActivity.class);
 		startActivity(intent);
 	}
 }

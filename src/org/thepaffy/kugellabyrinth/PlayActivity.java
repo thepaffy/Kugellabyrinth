@@ -33,6 +33,8 @@ public class PlayActivity extends Activity {
 	 */
 	private SystemUiHider mSystemUiHider;
 
+	private BoardView mBoardView;
+
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -40,11 +42,11 @@ public class PlayActivity extends Activity {
 		setContentView(R.layout.activity_play);
 
 		final View controlsView = findViewById(R.id.fullscreen_content_controls);
-		final View contentView = findViewById(R.id.fullscreen_content);
+		mBoardView = (BoardView) findViewById(R.id.BoardView);
 
 		// Set up an instance of SystemUiHider to control the system UI for
 		// this activity.
-		mSystemUiHider = SystemUiHider.getInstance(this, contentView,
+		mSystemUiHider = SystemUiHider.getInstance(this, mBoardView,
 				HIDER_FLAGS);
 		mSystemUiHider.setup();
 		mSystemUiHider
@@ -83,7 +85,7 @@ public class PlayActivity extends Activity {
 				});
 
 		// Set up the user interaction to manually show or hide the system UI.
-		contentView.setOnClickListener(new View.OnClickListener() {
+		mBoardView.setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View view) {
 				if (TOGGLE_ON_CLICK) {
@@ -121,12 +123,12 @@ public class PlayActivity extends Activity {
 		mHideHandler.removeCallbacks(mHideRunnable);
 		mHideHandler.postDelayed(mHideRunnable, delayMillis);
 	}
-	
+
 	public void abort(View view) {
 		Intent intent = new Intent(this, StartActivity.class);
 		startActivity(intent);
 	}
-	
+
 	public void highscore(View view) {
 		Intent intent = new Intent(this, HighscoreActivity.class);
 		startActivity(intent);

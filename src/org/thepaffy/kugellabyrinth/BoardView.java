@@ -6,9 +6,13 @@ import android.view.SurfaceView;
 
 public class BoardView extends SurfaceView implements SurfaceHolder.Callback {
 
+	private Kugel mKugel;
+
 	public BoardView(Context context) {
 		super(context);
-		// TODO Auto-generated constructor stub
+		SurfaceHolder surfaceHolder = getHolder();
+		surfaceHolder.addCallback(this);
+		mKugel = new Kugel(context, surfaceHolder);
 	}
 
 	@Override

@@ -7,13 +7,14 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.view.SurfaceHolder;
 
-public class Kugel {
+public class Kugel implements SensorEventListener {
 
 	/** x of the ball center */
-	private double mX;
+	private double mX = 0;
 	/** y of the ball center */
-	private double mY;
+	private double mY = 0;
 
 	/** x speed of the ball */
 	private double mVx = 0;
@@ -25,50 +26,37 @@ public class Kugel {
 	/** current y accel */
 	private double mAy = 0;
 
+	private Object mAccelLock = new Object();
+
 	private long mLastTime;
 
 	private final Context mContext;
 
-	private final Canvas mCanvas;
+	private final SurfaceHolder mSurfaceHolder;
 
 	private final Drawable mKugelImage;
 	private final int mKugelWidth;
 	private final int mKugelHeight;
 
-	private final Sensor mSensor;
-	private final SensorEventListener mSensorEventListener;
+	private SensorManager mSensorManager;
+	private Sensor mSensor;
 
-	public Kugel(double x, double y, Context context, Canvas canvas) {
-		mX = x;
-		mY = y;
+	public Kugel(Context context, SurfaceHolder surfaceHolder) {
 		mContext = context;
-		mCanvas = canvas;
-		SensorManager sensorManager = (SensorManager) mContext
+		mSurfaceHolder = surfaceHolder;
+
+		mSensorManager = (SensorManager) mContext
 				.getSystemService(Context.SENSOR_SERVICE);
-		mSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+		mSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+		mSensorManager.registerListener(this, mSensor,
+				SensorManager.SENSOR_DELAY_GAME);
 
 		mKugelImage = mContext.getResources().getDrawable(R.drawable.kugel);
 		mKugelHeight = mKugelImage.getIntrinsicHeight();
 		mKugelWidth = mKugelImage.getIntrinsicWidth();
-
-		mSensorEventListener = new SensorEventListener() {
-
-			@Override
-			public void onSensorChanged(SensorEvent event) {
-				if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
-					mAx = event.values[0];
-					mAy = event.values[1];
-				}
-			}
-
-			@Override
-			public void onAccuracyChanged(Sensor sensor, int accuracy) {
-				// TODO Auto-generated method stub
-			}
-		};
 	}
 
-	private void updatePhysics() {
+	private void updatePhysics(Canvas canvas) {
 		long now = System.currentTimeMillis();
 
 		if (mLastTime > now)
@@ -76,20 +64,77 @@ public class Kugel {
 
 		double elapsed = (mLastTime - now) / 1000.0;
 
-		mVx = mVx + mAx * elapsed;
-		mVy = mVy + mAy * elapsed;
-
-		if (mX >= 0 && mX < mCanvas.getWidth()) {
-			mX = mX + mVx * elapsed;
+		synchronized (mAccelLock) {
+			mVx = mVx + mAx * elapsed;
+			mVy = mVy + mAy * elapsed;
 		}
-		if (mY >= 0 && mY < mCanvas.getHeight()) {
+
+		if (mX - mKugelWidth / 2 > 0
+				&& mX + mKugelWidth / 2 < canvas.getWidth()) {
+			mX = mX + mVx * elapsed;
+		} else {
+			mX = mX - mVx * elapsed;
+		}
+
+		if (mY - mKugelHeight / 2 > 0
+				&& mY + mKugelHeight / 2 < canvas.getHeight()) {
 			mY = mY + mVy * elapsed;
+		} else {
+			mY = mY - mVy * elapsed;
 		}
 
 		mLastTime = now;
 	}
 
-	private void doDraw() {
+	private void doDraw(Canvas canvas) {
+		int xLeft = (int) mX - mKugelWidth / 2;
+		int yTop = (int) mY - mKugelHeight / 2;
+		canvas.save();
+		mKugelImage.setBounds(xLeft, yTop, xLeft + mKugelWidth, yTop
+				+ mKugelHeight);
+		mKugelImage.draw(canvas);
+		canvas.restore();
+	}
+
+	public void move() {
+		Canvas canvas = null;
+		try {
+			synchronized (mSurfaceHolder) {
+				canvas = mSurfaceHolder.lockCanvas(null);
+				updatePhysics(canvas);
+				doDraw(canvas);
+			}
+		} finally {
+			if (canvas != null) {
+				mSurfaceHolder.unlockCanvasAndPost(canvas);
+			}
+		}
+	}
+
+	public int kugelWidth() {
+		return mKugelWidth;
+	}
+
+	public int kugelHeight() {
+		return mKugelHeight;
+	}
+
+	public void setStartPos(double x, double y) {
+		mX = x;
+		mY = y;
+	}
+
+	@Override
+	public void onSensorChanged(SensorEvent event) {
+		synchronized (mAccelLock) {
+			mAx = event.values[0];
+			mAy = event.values[1];
+		}
+	}
+
+	@Override
+	public void onAccuracyChanged(Sensor sensor, int accuracy) {
+		// TODO Auto-generated method stub
 
 	}
 

@@ -33,8 +33,6 @@ public class PlayActivity extends Activity {
 	 */
 	private SystemUiHider mSystemUiHider;
 
-	private BoardView mBoardView;
-
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -42,12 +40,12 @@ public class PlayActivity extends Activity {
 		setContentView(R.layout.activity_play);
 
 		final View controlsView = findViewById(R.id.fullscreen_content_controls);
-		mBoardView = (BoardView) findViewById(R.id.BoardView);
+		final BoardView boardView = (BoardView) findViewById(R.id.BoardView);
 
 		// Set up an instance of SystemUiHider to control the system UI for
 		// this activity.
-		mSystemUiHider = SystemUiHider.getInstance(this, mBoardView,
-				HIDER_FLAGS);
+		mSystemUiHider = SystemUiHider
+				.getInstance(this, boardView, HIDER_FLAGS);
 		mSystemUiHider.setup();
 		mSystemUiHider
 				.setOnVisibilityChangeListener(new SystemUiHider.OnVisibilityChangeListener() {
@@ -85,7 +83,7 @@ public class PlayActivity extends Activity {
 				});
 
 		// Set up the user interaction to manually show or hide the system UI.
-		mBoardView.setOnClickListener(new View.OnClickListener() {
+		boardView.setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View view) {
 				if (TOGGLE_ON_CLICK) {

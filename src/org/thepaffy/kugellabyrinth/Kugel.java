@@ -1,6 +1,9 @@
 package org.thepaffy.kugellabyrinth;
 
 import android.content.Context;
+import android.content.res.Resources;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.drawable.Drawable;
 import android.hardware.Sensor;
@@ -9,7 +12,7 @@ import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.view.SurfaceHolder;
 
-public class Kugel implements SensorEventListener {
+public class Kugel extends Thread implements SensorEventListener {
 
 	/** x of the ball center */
 	private double mX = 0;
@@ -26,17 +29,21 @@ public class Kugel implements SensorEventListener {
 	/** current y accel */
 	private double mAy = 0;
 
-	private Object mAccelLock = new Object();
-
 	private long mLastTime;
 
-	private final Context mContext;
+	private Context mContext;
+	private SurfaceHolder mSurfaceHolder;
 
-	private final SurfaceHolder mSurfaceHolder;
+	private Drawable mKugelImage;
+	private int mKugelWidth;
+	private int mKugelHeight;
 
-	private final Drawable mKugelImage;
-	private final int mKugelWidth;
-	private final int mKugelHeight;
+	private Bitmap mBackgroundImage;
+	private int mCanvasWidth = 1;
+	private int mCanvasHeight = 1;
+
+	private boolean mRun = false;
+	private Object mRunLock = new Object();
 
 	private SensorManager mSensorManager;
 	private Sensor mSensor;
@@ -51,33 +58,89 @@ public class Kugel implements SensorEventListener {
 		mSensorManager.registerListener(this, mSensor,
 				SensorManager.SENSOR_DELAY_GAME);
 
-		mKugelImage = mContext.getResources().getDrawable(R.drawable.kugel);
+		Resources res = mContext.getResources();
+		mKugelImage = res.getDrawable(R.drawable.kugel);
 		mKugelHeight = mKugelImage.getIntrinsicHeight();
 		mKugelWidth = mKugelImage.getIntrinsicWidth();
+		mBackgroundImage = BitmapFactory.decodeResource(res, R.drawable.brett);
 	}
 
-	private void updatePhysics(Canvas canvas) {
+	@Override
+	public void run() {
+		doStart();
+		while (mRun) {
+			Canvas c = null;
+			try {
+				c = mSurfaceHolder.lockCanvas(null);
+				synchronized (mSurfaceHolder) {
+					updatePhysics();
+					synchronized (mRunLock) {
+						if (mRun)
+							doDraw(c);
+					}
+				}
+			} finally {
+				if (c != null) {
+					mSurfaceHolder.unlockCanvasAndPost(c);
+				}
+			}
+		}
+	}
+
+	public void setRunning(boolean b) {
+		synchronized (mRunLock) {
+			mRun = b;
+		}
+	}
+
+	public void setSurfaceSize(int width, int height) {
+		synchronized (mSurfaceHolder) {
+			mCanvasWidth = width;
+			mCanvasHeight = height;
+
+			mBackgroundImage = Bitmap.createScaledBitmap(mBackgroundImage,
+					width, height, true);
+		}
+	}
+
+	@Override
+	public void onSensorChanged(SensorEvent event) {
+		mAx = event.values[0];
+		mAy = event.values[1];
+	}
+
+	@Override
+	public void onAccuracyChanged(Sensor sensor, int accuracy) {
+		// TODO Auto-generated method stub
+
+	}
+
+	private void doStart() {
+		synchronized (mSurfaceHolder) {
+			mX = mCanvasWidth / 2.0;
+			mY = mCanvasHeight / 2.0;
+			mLastTime = System.currentTimeMillis();
+		}
+	}
+
+	private void updatePhysics() {
 		long now = System.currentTimeMillis();
 
 		if (mLastTime > now)
 			return;
 
-		double elapsed = (mLastTime - now) / 1000.0;
+		double elapsed = (now - mLastTime) / 1000.0;
 
-		synchronized (mAccelLock) {
-			mVx = mVx + mAx * elapsed;
-			mVy = mVy + mAy * elapsed;
-		}
+		mVx = mVx + mAx * elapsed;
+		mVy = mVy + mAy * elapsed;
 
-		if (mX - mKugelWidth / 2 > 0
-				&& mX + mKugelWidth / 2 < canvas.getWidth()) {
+		if (mX - mKugelWidth / 2 > 0 && mX + mKugelWidth / 2 < mCanvasWidth) {
 			mX = mX + mVx * elapsed;
 		} else {
 			mX = mX - mVx * elapsed;
 		}
 
-		if (mY - mKugelHeight / 2 > 0
-				&& mY + mKugelHeight / 2 < canvas.getHeight()) {
+		if (mY - mKugelHeight / 2 > 0 && mY + mKugelHeight / 2 < mCanvasHeight) {
 			mY = mY + mVy * elapsed;
 		} else {
 			mY = mY - mVy * elapsed;
@@ -87,6 +150,8 @@ public class Kugel implements SensorEventListener {
 	}
 
 	private void doDraw(Canvas canvas) {
+		canvas.drawBitmap(mBackgroundImage, 0, 0, null);
+
 		int xLeft = (int) mX - mKugelWidth / 2;
 		int yTop = (int) mY - mKugelHeight / 2;
 		canvas.save();
@@ -94,48 +159,6 @@ public class Kugel implements SensorEventListener {
 				+ mKugelHeight);
 		mKugelImage.draw(canvas);
 		canvas.restore();
-	}
-
-	public void move() {
-		Canvas canvas = null;
-		try {
-			synchronized (mSurfaceHolder) {
-				canvas = mSurfaceHolder.lockCanvas(null);
-				updatePhysics(canvas);
-				doDraw(canvas);
-			}
-		} finally {
-			if (canvas != null) {
-				mSurfaceHolder.unlockCanvasAndPost(canvas);
-			}
-		}
-	}
-
-	public int kugelWidth() {
-		return mKugelWidth;
-	}
-
-	public int kugelHeight() {
-		return mKugelHeight;
-	}
-
-	public void setStartPos(double x, double y) {
-		mX = x;
-		mY = y;
-	}
-
-	@Override
-	public void onSensorChanged(SensorEvent event) {
-		synchronized (mAccelLock) {
-			mAx = event.values[0];
-			mAy = event.values[1];
-		}
-	}
-
-	@Override
-	public void onAccuracyChanged(Sensor sensor, int accuracy) {
-		// TODO Auto-generated method stub
-
 	}
 
 }

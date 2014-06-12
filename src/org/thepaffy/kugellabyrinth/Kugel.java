@@ -10,9 +10,12 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.util.Log;
 import android.view.SurfaceHolder;
 
 public class Kugel extends Thread implements SensorEventListener {
+
+	private static final String TAG = "Kugel";
 
 	/** x of the ball center */
 	private double mX = 0;
@@ -105,8 +108,8 @@ public class Kugel extends Thread implements SensorEventListener {
 
 	@Override
 	public void onSensorChanged(SensorEvent event) {
-		mAx = event.values[0];
-		mAy = event.values[1];
+		mAy = event.values[0];
+		mAx = event.values[1];
 	}
 
 	@Override
@@ -138,13 +141,18 @@ public class Kugel extends Thread implements SensorEventListener {
 			mX = mX + mVx * elapsed;
 		} else {
 			mX = mX - mVx * elapsed;
+			mVx *= -1;
 		}
 
 		if (mY - mKugelHeight / 2 > 0 && mY + mKugelHeight / 2 < mCanvasHeight) {
 			mY = mY + mVy * elapsed;
 		} else {
 			mY = mY - mVy * elapsed;
+			mVy *= -1;
 		}
+
+		Log.d(TAG, "Ax: " + mAx + ", Ay: " + mAy + "\nVx: " + mVx + ", Vy: "
+				+ mVy);
 
 		mLastTime = now;
 	}

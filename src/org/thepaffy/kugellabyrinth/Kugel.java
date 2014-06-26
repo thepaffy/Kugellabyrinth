@@ -1,5 +1,8 @@
 package org.thepaffy.kugellabyrinth;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+
 import android.content.Context;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
@@ -16,6 +19,16 @@ import android.view.SurfaceHolder;
 public class Kugel extends Thread implements SensorEventListener {
 
 	private static final String TAG = "Kugel";
+
+	class Coord {
+		public int mX;
+		public int mY;
+
+		public Coord(int x, int y) {
+			mX = x;
+			mY = y;
+		}
+	}
 
 	/** x of the ball center */
 	private double mX = 0;
@@ -34,6 +47,12 @@ public class Kugel extends Thread implements SensorEventListener {
 
 	private long mLastTime;
 
+	/** current round handle x */
+	private boolean mHandledX = false;
+
+	/** current round handle y */
+	private boolean mHandledY = false;
+
 	private Context mContext;
 	private SurfaceHolder mSurfaceHolder;
 
@@ -51,6 +70,9 @@ public class Kugel extends Thread implements SensorEventListener {
 	private SensorManager mSensorManager;
 	private Sensor mSensor;
 
+	private HashMap<Coord, Baulk> mBaulkHash;
+	private ArrayList<Coord> mCoordList;
+
 	public Kugel(Context context, SurfaceHolder surfaceHolder) {
 		mContext = context;
 		mSurfaceHolder = surfaceHolder;
@@ -63,9 +85,12 @@ public class Kugel extends Thread implements SensorEventListener {
 
 		Resources res = mContext.getResources();
 		mKugelImage = res.getDrawable(R.drawable.kugel);
-		mKugelHeight = mKugelImage.getIntrinsicHeight();
-		mKugelWidth = mKugelImage.getIntrinsicWidth();
+		mKugelHeight = mKugelImage.getIntrinsicHeight() / 2;
+		mKugelWidth = mKugelImage.getIntrinsicWidth() / 2;
 		mBackgroundImage = BitmapFactory.decodeResource(res, R.drawable.brett);
+
+		mBaulkHash = new HashMap<Coord, Baulk>();
+		mCoordList = new ArrayList<Coord>();
 	}
 
 	@Override
@@ -103,18 +128,58 @@ public class Kugel extends Thread implements SensorEventListener {
 
 			mBackgroundImage = Bitmap.createScaledBitmap(mBackgroundImage,
 					width, height, true);
+			fillBaulkHash();
 		}
 	}
 
 	@Override
 	public void onSensorChanged(SensorEvent event) {
-		mAy = event.values[0];
-		mAx = event.values[1];
+		// Swap the axis because landscape
+		mAy = 4 * event.values[0];
+		mAx = 4 * event.values[1];
 	}
 
 	@Override
 	public void onAccuracyChanged(Sensor sensor, int accuracy) {
 		// TODO Auto-generated method stub
+
+	}
+
+	public int x() {
+		return (int) mX;
+	}
+
+	public int y() {
+		return (int) mY;
+	}
+
+	public int width() {
+		return mCanvasWidth;
+	}
+
+	public int height() {
+		return mCanvasHeight;
+	}
+
+	public void reflectX() {
+		mVx *= -1;
+		mHandledX = true;
+	}
+
+	public void reflectY() {
+		mVy *= -1;
+		mHandledY = true;
+	}
+
+	public boolean isHandledX() {
+		return mHandledX;
+	}
+
+	public boolean isHandledY() {
+		return mHandledY;
+	}
+
+	public void inHole() {
 
 	}
 
@@ -134,22 +199,18 @@ public class Kugel extends Thread implements SensorEventListener {
 
 		double elapsed = (now - mLastTime) / 1000.0;
 
+		for (int i = 0; i < mCoordList.size(); i++) {
+			Coord c = mCoordList.get(i);
+			if (mBaulkHash.containsKey(c)) {
+				mBaulkHash.get(c).handle(this);
+			}
+		}
+		mX = mX + mVx * elapsed + 0.5 * mAx * elapsed * elapsed;
+		mY = mY + mVy * elapsed + 0.5 * mAy * elapsed * elapsed;
+
+		// Save current speed for next round
 		mVx = mVx + mAx * elapsed;
 		mVy = mVy + mAy * elapsed;
-
-		if (mX - mKugelWidth / 2 > 0 && mX + mKugelWidth / 2 < mCanvasWidth) {
-			mX = mX + mVx * elapsed;
-		} else {
-			mX = mX - mVx * elapsed;
-			mVx *= -1;
-		}
-
-		if (mY - mKugelHeight / 2 > 0 && mY + mKugelHeight / 2 < mCanvasHeight) {
-			mY = mY + mVy * elapsed;
-		} else {
-			mY = mY - mVy * elapsed;
-			mVy *= -1;
-		}
 
 		Log.d(TAG, "Ax: " + mAx + ", Ay: " + mAy + "\nVx: " + mVx + ", Vy: "
 				+ mVy);
@@ -167,6 +228,31 @@ public class Kugel extends Thread implements SensorEventListener {
 				+ mKugelHeight);
 		mKugelImage.draw(canvas);
 		canvas.restore();
+	}
+
+	private void fillBaulkHash() {
+		// Canvas top & bottom border
+		Coord c;
+		for (int x = 0; x < mCanvasWidth; x++) {
+			c = new Coord(x, 0);
+			mBaulkHash.put(c, new Wall(x, 0));
+			mCoordList.add(c);
+
+			c = new Coord(x, mCanvasHeight - 1);
+			mBaulkHash.put(c, new Wall(x, mCanvasHeight - 1));
+			mCoordList.add(c);
+		}
+
+		// Canvas left & right border
+		for (int y = 1; y < mCanvasHeight - 1; y++) {
+			c = new Coord(0, y);
+			mBaulkHash.put(c, new Wall(0, y));
+			mCoordList.add(c);
+
+			c = new Coord(mCanvasWidth - 1, y);
+			mBaulkHash.put(c, new Wall(mCanvasWidth - 1, y));
+			mCoordList.add(c);
+		}
 	}
 
 }

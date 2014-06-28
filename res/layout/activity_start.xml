@@ -23,14 +23,4 @@
         android:text="@string/play_button"
         android:onClick="play" />
 
-    <Button
-        android:id="@+id/settings_button"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_below="@+id/highscore_button"
-        android:layout_centerHorizontal="true"
-        android:layout_marginTop="78dp"
-        android:text="@string/settings_button"
-        android:onClick="settings" />
-
 </RelativeLayout>

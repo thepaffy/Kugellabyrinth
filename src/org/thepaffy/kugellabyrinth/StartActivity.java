@@ -12,17 +12,12 @@ public class StartActivity extends Activity {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_start);
 	}
-	
+
 	public void play(View view) {
 		Intent intent = new Intent(this, PlayActivity.class);
 		startActivity(intent);
 	}
-	
-	public void settings(View view) {
-		Intent intent = new Intent(this, SettingsActivity.class);
-		startActivity(intent);
-	}
-	
+
 	public void highscore(View view) {
 		Intent intent = new Intent(this, HighscoreActivity.class);
 		startActivity(intent);

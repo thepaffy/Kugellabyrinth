@@ -1,8 +1,5 @@
 package org.thepaffy.kugellabyrinth;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-
 import android.content.Context;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
@@ -20,16 +17,6 @@ public class Kugel extends Thread implements SensorEventListener {
 
 	private static final String TAG = "Kugel";
 
-	class Coord {
-		public int mX;
-		public int mY;
-
-		public Coord(int x, int y) {
-			mX = x;
-			mY = y;
-		}
-	}
-
 	/** x of the ball center */
 	private double mX = 0;
 	/** y of the ball center */
@@ -45,12 +32,15 @@ public class Kugel extends Thread implements SensorEventListener {
 	/** current y accel */
 	private double mAy = 0;
 
+	/** last loop time */
 	private long mLastTime;
+	/** start time */
+	private long mStartTime;
 
-	/** current round handle x */
+	/** current loop handle x */
 	private boolean mHandledX = false;
 
-	/** current round handle y */
+	/** current loop handle y */
 	private boolean mHandledY = false;
 
 	private Context mContext;
@@ -59,6 +49,8 @@ public class Kugel extends Thread implements SensorEventListener {
 	private Drawable mKugelImage;
 	private int mKugelWidth;
 	private int mKugelHeight;
+
+	private int mHoleRadius;
 
 	private Bitmap mBackgroundImage;
 	private int mCanvasWidth = 1;
@@ -69,9 +61,6 @@ public class Kugel extends Thread implements SensorEventListener {
 
 	private SensorManager mSensorManager;
 	private Sensor mSensor;
-
-	private HashMap<Coord, Baulk> mBaulkHash;
-	private ArrayList<Coord> mCoordList;
 
 	public Kugel(Context context, SurfaceHolder surfaceHolder) {
 		mContext = context;
@@ -87,10 +76,8 @@ public class Kugel extends Thread implements SensorEventListener {
 		mKugelImage = res.getDrawable(R.drawable.kugel);
 		mKugelHeight = mKugelImage.getIntrinsicHeight() / 2;
 		mKugelWidth = mKugelImage.getIntrinsicWidth() / 2;
+		mHoleRadius = (mKugelWidth + mKugelHeight) / 4 + 6; // average
 		mBackgroundImage = BitmapFactory.decodeResource(res, R.drawable.brett);
-
-		mBaulkHash = new HashMap<Coord, Baulk>();
-		mCoordList = new ArrayList<Coord>();
 	}
 
 	@Override
@@ -128,7 +115,6 @@ public class Kugel extends Thread implements SensorEventListener {
 
 			mBackgroundImage = Bitmap.createScaledBitmap(mBackgroundImage,
 					width, height, true);
-			fillBaulkHash();
 		}
 	}
 
@@ -161,6 +147,10 @@ public class Kugel extends Thread implements SensorEventListener {
 		return mCanvasHeight;
 	}
 
+	public int holeRadius() {
+		return mHoleRadius;
+	}
+
 	public void reflectX() {
 		mVx *= -1;
 		mHandledX = true;
@@ -179,7 +169,8 @@ public class Kugel extends Thread implements SensorEventListener {
 		return mHandledY;
 	}
 
-	public void inHole() {
+	public void inHole(boolean end) {
+		long playTime = System.currentTimeMillis() - mStartTime;
 
 	}
 
@@ -187,7 +178,8 @@ public class Kugel extends Thread implements SensorEventListener {
 		synchronized (mSurfaceHolder) {
 			mX = mCanvasWidth / 2.0;
 			mY = mCanvasHeight / 2.0;
-			mLastTime = System.currentTimeMillis();
+			mStartTime = System.currentTimeMillis();
+			mLastTime = mStartTime;
 		}
 	}
 
@@ -199,12 +191,20 @@ public class Kugel extends Thread implements SensorEventListener {
 
 		double elapsed = (now - mLastTime) / 1000.0;
 
-		for (int i = 0; i < mCoordList.size(); i++) {
-			Coord c = mCoordList.get(i);
-			if (mBaulkHash.containsKey(c)) {
-				mBaulkHash.get(c).handle(this);
-			}
+		// Canvas borders
+		if (mX - mKugelWidth / 2 < 0 && mX + mKugelWidth / 2 > mCanvasWidth) {
+			reflectX();
 		}
+		if (mY - mKugelHeight / 2 < 0 && mY + mKugelHeight / 2 > mCanvasHeight) {
+			reflectY();
+		}
+
+		/*
+		 * for (int y = 0; y < mCanvasHeight; y++) { ArrayList<Baulk> baulkList
+		 * = mBaulkArray.get(y); if (baulkList != null) { for (int x = 0; x <
+		 * mCanvasWidth; x++) { Baulk baulk = baulkList.get(x); if (baulk !=
+		 * null) { baulk.handle(this); } } } }
+		 */
 		mX = mX + mVx * elapsed + 0.5 * mAx * elapsed * elapsed;
 		mY = mY + mVy * elapsed + 0.5 * mAy * elapsed * elapsed;
 
@@ -229,30 +229,4 @@ public class Kugel extends Thread implements SensorEventListener {
 		mKugelImage.draw(canvas);
 		canvas.restore();
 	}
-
-	private void fillBaulkHash() {
-		// Canvas top & bottom border
-		Coord c;
-		for (int x = 0; x < mCanvasWidth; x++) {
-			c = new Coord(x, 0);
-			mBaulkHash.put(c, new Wall(x, 0));
-			mCoordList.add(c);
-
-			c = new Coord(x, mCanvasHeight - 1);
-			mBaulkHash.put(c, new Wall(x, mCanvasHeight - 1));
-			mCoordList.add(c);
-		}
-
-		// Canvas left & right border
-		for (int y = 1; y < mCanvasHeight - 1; y++) {
-			c = new Coord(0, y);
-			mBaulkHash.put(c, new Wall(0, y));
-			mCoordList.add(c);
-
-			c = new Coord(mCanvasWidth - 1, y);
-			mBaulkHash.put(c, new Wall(mCanvasWidth - 1, y));
-			mCoordList.add(c);
-		}
-	}
-
 }

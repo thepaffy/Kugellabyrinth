@@ -17,11 +17,6 @@ import android.view.View;
  * @see SystemUiHider
  */
 public class PlayActivity extends Activity {
-	/**
-	 * If set, will toggle the system UI visibility upon interaction. Otherwise,
-	 * will show the system UI visibility upon interaction.
-	 */
-	private static final boolean TOGGLE_ON_CLICK = true;
 
 	/**
 	 * The flags to pass to {@link SystemUiHider#getInstance}.
@@ -33,6 +28,8 @@ public class PlayActivity extends Activity {
 	 */
 	private SystemUiHider mSystemUiHider;
 
+	private BoardView mBoardView;
+
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -40,12 +37,12 @@ public class PlayActivity extends Activity {
 		setContentView(R.layout.activity_play);
 
 		final View controlsView = findViewById(R.id.fullscreen_content_controls);
-		final BoardView boardView = (BoardView) findViewById(R.id.BoardView);
+		mBoardView = (BoardView) findViewById(R.id.BoardView);
 
 		// Set up an instance of SystemUiHider to control the system UI for
 		// this activity.
-		mSystemUiHider = SystemUiHider
-				.getInstance(this, boardView, HIDER_FLAGS);
+		mSystemUiHider = SystemUiHider.getInstance(this, mBoardView,
+				HIDER_FLAGS);
 		mSystemUiHider.setup();
 		mSystemUiHider
 				.setOnVisibilityChangeListener(new SystemUiHider.OnVisibilityChangeListener() {
@@ -83,14 +80,11 @@ public class PlayActivity extends Activity {
 				});
 
 		// Set up the user interaction to manually show or hide the system UI.
-		boardView.setOnClickListener(new View.OnClickListener() {
+		mBoardView.setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View view) {
-				if (TOGGLE_ON_CLICK) {
-					mSystemUiHider.toggle();
-				} else {
-					mSystemUiHider.show();
-				}
+				// mBoardView.pause(!mBoardView.isPaused());
+				mSystemUiHider.toggle();
 			}
 		});
 	}
@@ -102,7 +96,19 @@ public class PlayActivity extends Activity {
 		// Trigger the initial hide() shortly after the activity has been
 		// created, to briefly hint to the user that UI controls
 		// are available.
-		delayedHide(100);
+		delayedHide(200);
+	}
+
+	@Override
+	protected void onResume() {
+		super.onResume();
+		mBoardView.pause(false);
+	}
+
+	@Override
+	protected void onPause() {
+		mBoardView.pause(true);
+		super.onPause();
 	}
 
 	Handler mHideHandler = new Handler();
@@ -122,13 +128,16 @@ public class PlayActivity extends Activity {
 		mHideHandler.postDelayed(mHideRunnable, delayMillis);
 	}
 
-	public void abort(View view) {
-		Intent intent = new Intent(this, StartActivity.class);
-		startActivity(intent);
+	public void restart(View view) {
+		mBoardView.restart();
 	}
 
 	public void highscore(View view) {
 		Intent intent = new Intent(this, HighscoreActivity.class);
 		startActivity(intent);
+	}
+
+	public void pause(View view) {
+		mBoardView.pause(!mBoardView.isPaused());
 	}
 }

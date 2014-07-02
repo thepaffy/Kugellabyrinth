@@ -8,18 +8,28 @@ import android.view.SurfaceView;
 public class BoardView extends SurfaceView implements SurfaceHolder.Callback {
 
 	private Kugel mKugel;
+	private Runnable mRunnable;
+	private Thread mThread;
 
 	public BoardView(Context context, AttributeSet attrs) {
 		super(context, attrs);
 		SurfaceHolder surfaceHolder = getHolder();
 		surfaceHolder.addCallback(this);
 		mKugel = new Kugel(context, surfaceHolder);
+		mRunnable = new Runnable() {
+
+			@Override
+			public void run() {
+				mKugel.process();
+			}
+		};
 	}
 
 	@Override
 	public void surfaceCreated(SurfaceHolder holder) {
+		mThread = new Thread(mRunnable);
 		mKugel.setRunning(true);
-		mKugel.start();
+		mThread.start();
 	}
 
 	@Override
@@ -34,7 +44,7 @@ public class BoardView extends SurfaceView implements SurfaceHolder.Callback {
 		mKugel.setRunning(false);
 		while (retry) {
 			try {
-				mKugel.join();
+				mThread.join();
 				retry = false;
 			} catch (InterruptedException e) {
 				e.printStackTrace();
@@ -42,4 +52,15 @@ public class BoardView extends SurfaceView implements SurfaceHolder.Callback {
 		}
 	}
 
+	public void pause(boolean b) {
+		mKugel.pause(b);
+	}
+
+	public boolean isPaused() {
+		return mKugel.isPaused();
+	}
+
+	public void restart() {
+		mKugel.restart();
+	}
 }

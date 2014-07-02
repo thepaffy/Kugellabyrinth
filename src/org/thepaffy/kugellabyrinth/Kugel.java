@@ -1,6 +1,9 @@
 package org.thepaffy.kugellabyrinth;
 
+import java.util.ArrayList;
+
 import android.content.Context;
+import android.content.Intent;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -10,12 +13,17 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
-import android.util.Log;
+import android.os.Vibrator;
 import android.view.SurfaceHolder;
 
-public class Kugel extends Thread implements SensorEventListener {
+public class Kugel implements SensorEventListener {
 
+	@SuppressWarnings("unused")
 	private static final String TAG = "Kugel";
+
+	public static final String TIME = "TIME";
+
+	private static final long VIB_DURATION = 200;
 
 	/** x of the ball center */
 	private double mX = 0;
@@ -37,20 +45,13 @@ public class Kugel extends Thread implements SensorEventListener {
 	/** start time */
 	private long mStartTime;
 
-	/** current loop handle x */
-	private boolean mHandledX = false;
-
-	/** current loop handle y */
-	private boolean mHandledY = false;
-
 	private Context mContext;
 	private SurfaceHolder mSurfaceHolder;
 
 	private Drawable mKugelImage;
 	private int mKugelWidth;
 	private int mKugelHeight;
-
-	private int mHoleRadius;
+	private int mKugelRadius;
 
 	private Bitmap mBackgroundImage;
 	private int mCanvasWidth = 1;
@@ -59,8 +60,16 @@ public class Kugel extends Thread implements SensorEventListener {
 	private boolean mRun = false;
 	private Object mRunLock = new Object();
 
+	private boolean mPause = false;
+
+	private boolean mEnded = false;
+
 	private SensorManager mSensorManager;
 	private Sensor mSensor;
+
+	private Vibrator mVibrator;
+
+	private ArrayList<Baulk> mBaulkList;
 
 	public Kugel(Context context, SurfaceHolder surfaceHolder) {
 		mContext = context;
@@ -72,18 +81,29 @@ public class Kugel extends Thread implements SensorEventListener {
 		mSensorManager.registerListener(this, mSensor,
 				SensorManager.SENSOR_DELAY_GAME);
 
+		mVibrator = (Vibrator) mContext
+				.getSystemService(Context.VIBRATOR_SERVICE);
+
 		Resources res = mContext.getResources();
 		mKugelImage = res.getDrawable(R.drawable.kugel);
 		mKugelHeight = mKugelImage.getIntrinsicHeight() / 2;
 		mKugelWidth = mKugelImage.getIntrinsicWidth() / 2;
-		mHoleRadius = (mKugelWidth + mKugelHeight) / 4 + 6; // average
+		mKugelRadius = (mKugelHeight + mKugelWidth) / 4; // average
 		mBackgroundImage = BitmapFactory.decodeResource(res, R.drawable.brett);
+
+		mBaulkList = new ArrayList<Baulk>();
 	}
 
-	@Override
-	public void run() {
+	public void process() {
 		doStart();
 		while (mRun) {
+			while (mPause && mRun) {
+				try {
+					Thread.sleep(200);
+				} catch (InterruptedException e) {
+
+				}
+			}
 			Canvas c = null;
 			try {
 				c = mSurfaceHolder.lockCanvas(null);
@@ -108,6 +128,37 @@ public class Kugel extends Thread implements SensorEventListener {
 		}
 	}
 
+	public void pause(boolean b) {
+		synchronized (mSurfaceHolder) {
+			if (!b) {
+				mLastTime = System.currentTimeMillis();
+			}
+			mPause = b;
+		}
+	}
+
+	public boolean isPaused() {
+		return mPause;
+	}
+
+	public boolean isEnded() {
+		return mEnded;
+	}
+
+	public void restart() {
+		synchronized (mSurfaceHolder) {
+			mPause = true;
+			mAx = 0;
+			mAy = 0;
+			mVx = 0;
+			mVy = 0;
+			mX = mKugelWidth / 2 + 5;
+			mY = mKugelHeight / 2 + 5;
+			mEnded = false;
+			mPause = false;
+		}
+	}
+
 	public void setSurfaceSize(int width, int height) {
 		synchronized (mSurfaceHolder) {
 			mCanvasWidth = width;
@@ -121,8 +172,20 @@ public class Kugel extends Thread implements SensorEventListener {
 	@Override
 	public void onSensorChanged(SensorEvent event) {
 		// Swap the axis because landscape
-		mAy = 4 * event.values[0];
-		mAx = 4 * event.values[1];
+		double aY = event.values[0];
+		double aX = event.values[1];
+
+		if (Math.abs(aX) < 0.5 && Math.abs(mAx) < 0.5) {
+			mAx = 0;
+		} else {
+			mAx = 4 * aX;
+		}
+
+		if (Math.abs(aY) < 0.5 && Math.abs(mVy) < 0.5) {
+			mAy = 0;
+		} else {
+			mAy = 4 * aY;
+		}
 	}
 
 	@Override
@@ -140,44 +203,43 @@ public class Kugel extends Thread implements SensorEventListener {
 	}
 
 	public int width() {
-		return mCanvasWidth;
+		return mKugelWidth;
 	}
 
 	public int height() {
-		return mCanvasHeight;
-	}
-
-	public int holeRadius() {
-		return mHoleRadius;
+		return mKugelHeight;
 	}
 
 	public void reflectX() {
-		mVx *= -1;
-		mHandledX = true;
+		mX = mX + (mVx / -Math.abs(mVx)) * 2;
+		mVx *= -0.25;
+		mVibrator.vibrate(VIB_DURATION);
 	}
 
 	public void reflectY() {
-		mVy *= -1;
-		mHandledY = true;
-	}
-
-	public boolean isHandledX() {
-		return mHandledX;
-	}
-
-	public boolean isHandledY() {
-		return mHandledY;
+		mY = mY + (mVy / -Math.abs(mVy)) * 2;
+		mVy *= -0.25;
+		mVibrator.vibrate(VIB_DURATION);
 	}
 
 	public void inHole(boolean end) {
-		long playTime = System.currentTimeMillis() - mStartTime;
-
+		long now = System.currentTimeMillis();
+		long playTime = (now - mStartTime) / 1000;
+		if (end) {
+			mPause = true;
+			Intent intent = new Intent(mContext, HighscoreActivity.class);
+			intent.putExtra(TIME, playTime);
+			mContext.startActivity(intent);
+		} else {
+			restart();
+		}
 	}
 
 	private void doStart() {
 		synchronized (mSurfaceHolder) {
-			mX = mCanvasWidth / 2.0;
-			mY = mCanvasHeight / 2.0;
+			mX = mKugelWidth / 2 + 5;
+			mY = mKugelHeight / 2 + 5;
+			fillBaulkList();
 			mStartTime = System.currentTimeMillis();
 			mLastTime = mStartTime;
 		}
@@ -192,19 +254,18 @@ public class Kugel extends Thread implements SensorEventListener {
 		double elapsed = (now - mLastTime) / 1000.0;
 
 		// Canvas borders
-		if (mX - mKugelWidth / 2 < 0 && mX + mKugelWidth / 2 > mCanvasWidth) {
+		if (mX - mKugelWidth / 2 <= 0 || mX + mKugelWidth / 2 >= mCanvasWidth) {
 			reflectX();
 		}
-		if (mY - mKugelHeight / 2 < 0 && mY + mKugelHeight / 2 > mCanvasHeight) {
+		if (mY - mKugelHeight / 2 <= 0
+				|| mY + mKugelHeight / 2 >= mCanvasHeight) {
 			reflectY();
 		}
 
-		/*
-		 * for (int y = 0; y < mCanvasHeight; y++) { ArrayList<Baulk> baulkList
-		 * = mBaulkArray.get(y); if (baulkList != null) { for (int x = 0; x <
-		 * mCanvasWidth; x++) { Baulk baulk = baulkList.get(x); if (baulk !=
-		 * null) { baulk.handle(this); } } } }
-		 */
+		for (int i = 0; i < mBaulkList.size(); i++) {
+			mBaulkList.get(i).calcDistance(this);
+		}
+
 		mX = mX + mVx * elapsed + 0.5 * mAx * elapsed * elapsed;
 		mY = mY + mVy * elapsed + 0.5 * mAy * elapsed * elapsed;
 
@@ -212,14 +273,18 @@ public class Kugel extends Thread implements SensorEventListener {
 		mVx = mVx + mAx * elapsed;
 		mVy = mVy + mAy * elapsed;
 
-		Log.d(TAG, "Ax: " + mAx + ", Ay: " + mAy + "\nVx: " + mVx + ", Vy: "
-				+ mVy);
+		// Log.d(TAG, "Ax: " + mAx + ", Ay: " + mAy + "\nVx: " + mVx + ", Vy: "
+		// + mVy);
 
 		mLastTime = now;
 	}
 
 	private void doDraw(Canvas canvas) {
 		canvas.drawBitmap(mBackgroundImage, 0, 0, null);
+
+		for (int i = 0; i < mBaulkList.size(); i++) {
+			mBaulkList.get(i).draw(canvas);
+		}
 
 		int xLeft = (int) mX - mKugelWidth / 2;
 		int yTop = (int) mY - mKugelHeight / 2;
@@ -228,5 +293,25 @@ public class Kugel extends Thread implements SensorEventListener {
 				+ mKugelHeight);
 		mKugelImage.draw(canvas);
 		canvas.restore();
+	}
+
+	private void fillBaulkList() {
+		mBaulkList.clear();
+		int left = 0;
+		int right = mCanvasWidth - 2 * mKugelWidth;
+		int top = mCanvasHeight / 3 - 10;
+		int bottom = mCanvasHeight / 3;
+		Baulk b = new Wall(left, right, top, bottom);
+		mBaulkList.add(b);
+		left = 2 * mKugelWidth;
+		right = mCanvasWidth;
+		top = mCanvasHeight * 2 / 3;
+		bottom = mCanvasHeight * 2 / 3 + 10;
+		b = new Wall(left, right, top, bottom);
+		mBaulkList.add(b);
+		int xCenter = mCanvasWidth - mKugelWidth / 2 - 6;
+		int yCenter = mCanvasHeight - mKugelHeight / 2 - 6;
+		b = new EndHole(xCenter, yCenter, mKugelRadius + 2);
+		mBaulkList.add(b);
 	}
 }

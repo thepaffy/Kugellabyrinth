@@ -1,12 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Kugellabyrinth</string>
-    <string name="hello_world">Hello world!</string>
     <string name="title_activity_highscore">Highscore</string>
-    <string name="title_activity_play">Kugellabyrinth</string>
-    <string name="play_button">Play</string>
-    <string name="highscore_button">Highscore</string>
-    <string name="settings_button">Settings</string>
-    <string name="start_button">Menu</string>
-    <string name="abort_button">Abort</string>
+    <string name="submit_button">Submit</string>
+    <string name="pause_button">Pause</string>
+    <string name="restart_button">Restart</string>
 </resources>

@@ -5,4 +5,6 @@
     <string name="submit_button">Submit</string>
     <string name="pause_button">Pause</string>
     <string name="restart_button">Restart</string>
+    <string name="name_placeholder">Name</string>
+    <string name="time_placeholder">0:00</string>
 </resources>

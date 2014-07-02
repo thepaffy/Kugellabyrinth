@@ -62,8 +62,6 @@ public class Kugel implements SensorEventListener {
 
 	private boolean mPause = false;
 
-	private boolean mEnded = false;
-
 	private SensorManager mSensorManager;
 	private Sensor mSensor;
 
@@ -91,7 +89,7 @@ public class Kugel implements SensorEventListener {
 		mKugelRadius = (mKugelHeight + mKugelWidth) / 4; // average
 		mBackgroundImage = BitmapFactory.decodeResource(res, R.drawable.brett);
 
-		mBaulkList = new ArrayList<Baulk>();
+		mBaulkList = new ArrayList<Baulk>(0);
 	}
 
 	public void process() {
@@ -141,10 +139,6 @@ public class Kugel implements SensorEventListener {
 		return mPause;
 	}
 
-	public boolean isEnded() {
-		return mEnded;
-	}
-
 	public void restart() {
 		synchronized (mSurfaceHolder) {
 			mPause = true;
@@ -154,7 +148,7 @@ public class Kugel implements SensorEventListener {
 			mVy = 0;
 			mX = mKugelWidth / 2 + 5;
 			mY = mKugelHeight / 2 + 5;
-			mEnded = false;
+			mStartTime = System.currentTimeMillis();
 			mPause = false;
 		}
 	}
@@ -166,6 +160,7 @@ public class Kugel implements SensorEventListener {
 
 			mBackgroundImage = Bitmap.createScaledBitmap(mBackgroundImage,
 					width, height, true);
+			fillBaulkList();
 		}
 	}
 
@@ -175,13 +170,13 @@ public class Kugel implements SensorEventListener {
 		double aY = event.values[0];
 		double aX = event.values[1];
 
-		if (Math.abs(aX) < 0.5 && Math.abs(mAx) < 0.5) {
+		if (Math.abs(aX) < 0.5 && Math.abs(mVx) == 0) {
 			mAx = 0;
 		} else {
 			mAx = 4 * aX;
 		}
 
-		if (Math.abs(aY) < 0.5 && Math.abs(mVy) < 0.5) {
+		if (Math.abs(aY) < 0.5 && Math.abs(mVy) == 0) {
 			mAy = 0;
 		} else {
 			mAy = 4 * aY;
@@ -211,13 +206,13 @@ public class Kugel implements SensorEventListener {
 	}
 
 	public void reflectX() {
-		mX = mX + (mVx / -Math.abs(mVx)) * 2;
+		mX = mX + (mVx / -Math.abs(mVx));
 		mVx *= -0.25;
 		mVibrator.vibrate(VIB_DURATION);
 	}
 
 	public void reflectY() {
-		mY = mY + (mVy / -Math.abs(mVy)) * 2;
+		mY = mY + (mVy / -Math.abs(mVy));
 		mVy *= -0.25;
 		mVibrator.vibrate(VIB_DURATION);
 	}
@@ -226,10 +221,10 @@ public class Kugel implements SensorEventListener {
 		long now = System.currentTimeMillis();
 		long playTime = (now - mStartTime) / 1000;
 		if (end) {
-			mPause = true;
 			Intent intent = new Intent(mContext, HighscoreActivity.class);
 			intent.putExtra(TIME, playTime);
 			mContext.startActivity(intent);
+			mRun = false;
 		} else {
 			restart();
 		}
@@ -303,15 +298,93 @@ public class Kugel implements SensorEventListener {
 		int bottom = mCanvasHeight / 3;
 		Baulk b = new Wall(left, right, top, bottom);
 		mBaulkList.add(b);
+
 		left = 2 * mKugelWidth;
 		right = mCanvasWidth;
 		top = mCanvasHeight * 2 / 3;
 		bottom = mCanvasHeight * 2 / 3 + 10;
 		b = new Wall(left, right, top, bottom);
 		mBaulkList.add(b);
+
 		int xCenter = mCanvasWidth - mKugelWidth / 2 - 6;
 		int yCenter = mCanvasHeight - mKugelHeight / 2 - 6;
 		b = new EndHole(xCenter, yCenter, mKugelRadius + 2);
+		mBaulkList.add(b);
+
+		left = mCanvasWidth / 3;
+		right = mCanvasWidth / 3 + 10;
+		top = 0;
+		bottom = (int) (mCanvasHeight / 3 - 10 - mKugelHeight * 1.5);
+		b = new Wall(left, right, top, bottom);
+		mBaulkList.add(b);
+
+		xCenter = (int) (mCanvasWidth - 1.75 * mKugelWidth);
+		yCenter = mCanvasHeight / 3 - 15 - mKugelHeight / 2;
+		b = new Hole(xCenter, yCenter, mKugelRadius + 2);
+		mBaulkList.add(b);
+
+		xCenter = mKugelWidth / 2 + 5;
+		yCenter = mCanvasHeight / 3 + 5 + mKugelHeight / 2;
+		b = new Hole(xCenter, yCenter, mKugelRadius + 2);
+		mBaulkList.add(b);
+
+		xCenter = (int) (mCanvasWidth - 2 * mKugelWidth);
+		yCenter = mCanvasHeight / 3 + 15 + mKugelHeight / 2;
+		b = new Hole(xCenter, yCenter, mKugelRadius + 2);
+		mBaulkList.add(b);
+
+		left = mCanvasWidth * 2 / 3 - 10;
+		right = mCanvasWidth * 2 / 3;
+		top = (int) (mCanvasHeight / 3 + 1.5 * mKugelHeight);
+		bottom = mCanvasHeight * 2 / 3;
+		b = new Wall(left, right, top, bottom);
+		mBaulkList.add(b);
+
+		xCenter = mCanvasWidth * 2 / 3 + 5 + mKugelWidth / 2;
+		yCenter = mCanvasHeight * 2 / 3 - 5 - mKugelHeight / 2;
+		b = new Hole(xCenter, yCenter, mKugelRadius + 2);
+		mBaulkList.add(b);
+
+		xCenter = mKugelWidth * 3;
+		yCenter = mCanvasHeight * 2 / 3 - 5 - mKugelHeight / 2;
+		b = new Hole(xCenter, yCenter, mKugelRadius + 2);
+		mBaulkList.add(b);
+
+		xCenter = mKugelWidth / 2 + 5;
+		yCenter = mCanvasHeight - 5 - mKugelHeight / 2;
+		b = new Hole(xCenter, yCenter, mKugelRadius + 2);
+		mBaulkList.add(b);
+
+		xCenter = mCanvasWidth / 2;
+		yCenter = mCanvasHeight / 2;
+		b = new Hole(xCenter, yCenter, mKugelRadius + 2);
+		mBaulkList.add(b);
+
+		left = mCanvasWidth / 2 - 5;
+		right = mCanvasWidth / 2 + 5;
+		top = (int) (mCanvasHeight * 2 / 3 + 10 + 1.5 * mKugelHeight);
+		bottom = mCanvasHeight;
+		b = new Wall(left, right, top, bottom);
+		mBaulkList.add(b);
+
+		xCenter = mCanvasWidth / 2 - 10 - mKugelWidth / 2;
+		yCenter = mCanvasHeight - 5 - mKugelHeight / 2;
+		b = new Hole(xCenter, yCenter, mKugelRadius + 2);
+		mBaulkList.add(b);
+
+		xCenter = mCanvasWidth / 2 + 10 + mKugelWidth / 2;
+		yCenter = mCanvasHeight - 5 - mKugelHeight / 2;
+		b = new Hole(xCenter, yCenter, mKugelRadius + 2);
+		mBaulkList.add(b);
+
+		xCenter = mCanvasWidth / 4;
+		yCenter = mCanvasHeight * 2 / 3 + 15 + mKugelHeight / 2;
+		b = new Hole(xCenter, yCenter, mKugelRadius + 2);
+		mBaulkList.add(b);
+
+		xCenter = mCanvasWidth * 3 / 4;
+		yCenter = mCanvasHeight * 2 / 3 + 15 + mKugelHeight / 2;
+		b = new Hole(xCenter, yCenter, mKugelRadius + 2);
 		mBaulkList.add(b);
 	}
 }

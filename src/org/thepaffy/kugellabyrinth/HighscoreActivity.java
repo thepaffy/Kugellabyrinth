@@ -1,16 +1,22 @@
 package org.thepaffy.kugellabyrinth;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ListView;
+import android.widget.SimpleAdapter;
 import android.widget.TextView;
 
 public class HighscoreActivity extends Activity {
@@ -18,45 +24,103 @@ public class HighscoreActivity extends Activity {
 	@SuppressWarnings("unused")
 	private static final String TAG = "HighscoreActivity";
 
+	private static final String KEY_LAST_NAME = "lastname";
+
+	private LinearLayout mInputLayout;
+	private EditText mNameEdit;
+	private TextView mTimeView;
+	private Button mSubmitButton;
+	private ListView mListView;
+
+	private SharedPreferences mSharedPreferences;
+
+	private DatabaseOpenHelper mDatabaseOpenHelper;
+
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_highscore);
 
-		final LinearLayout inputLayout = (LinearLayout) findViewById(R.id.inputLayout);
-		final EditText nameEdit = (EditText) findViewById(R.id.nameEdit);
-		final TextView timeView = (TextView) findViewById(R.id.timeView);
-		final Button submitButton = (Button) findViewById(R.id.nameSubmit);
-		final ListView listView = (ListView) findViewById(R.id.listView);
+		mInputLayout = (LinearLayout) findViewById(R.id.inputLayout);
+		mNameEdit = (EditText) findViewById(R.id.nameEdit);
+		mTimeView = (TextView) findViewById(R.id.timeView);
+		mSubmitButton = (Button) findViewById(R.id.nameSubmit);
+		mListView = (ListView) findViewById(R.id.listView);
 
-		final DatabaseOpenHelper databaseOpenHelper = new DatabaseOpenHelper(
-				this);
+		mSharedPreferences = getPreferences(0);
+
+		mDatabaseOpenHelper = new DatabaseOpenHelper(this);
 
 		Intent intent = getIntent();
 		if (intent.hasExtra(Kugel.TIME)) {
 			long playTime = intent.getLongExtra(Kugel.TIME, 0);
-			inputLayout.setVisibility(View.VISIBLE);
-			submitButton.setVisibility(View.VISIBLE);
+			mInputLayout.setVisibility(View.VISIBLE);
+			mSubmitButton.setVisibility(View.VISIBLE);
 			long secs = playTime % 60;
 			long mins = (playTime - secs) / 60;
-			timeView.setText(mins + ":" + secs);
+			mTimeView.setText(mins + ":" + secs);
+			mNameEdit.setEnabled(true);
+			mNameEdit.setText(mSharedPreferences.getString(KEY_LAST_NAME, ""));
 
-			nameEdit.setActivated(true);
-			submitButton.setActivated(true);
-
-			submitButton.setOnClickListener(new OnClickListener() {
+			mSubmitButton.setOnClickListener(new OnClickListener() {
 
 				@Override
 				public void onClick(View v) {
-					Highscore highscore = new Highscore(nameEdit.getText()
-							.toString(), timeView.getText().toString());
-					databaseOpenHelper.addHighscore(highscore);
+					Map<String, String> highscore = new HashMap<String, String>(
+							2);
+					highscore.put(DatabaseOpenHelper.KEY_NAME, mNameEdit
+							.getText().toString());
+					highscore.put(DatabaseOpenHelper.KEY_TIME, mTimeView
+							.getText().toString());
+					mDatabaseOpenHelper.addHighscore(highscore);
+					SharedPreferences.Editor editor = mSharedPreferences.edit();
+					editor.putString(KEY_LAST_NAME, mNameEdit.getText()
+							.toString());
+					editor.commit();
+					mNameEdit.setText("");
+					mTimeView.setText("");
+					mSubmitButton.setEnabled(false);
+					mNameEdit.setEnabled(false);
+					fillListview();
 				}
 			});
 
-			List<Highscore> highscoreList = databaseOpenHelper
-					.getAllHighscores();
+			mNameEdit.addTextChangedListener(new TextWatcher() {
+
+				@Override
+				public void onTextChanged(CharSequence s, int start,
+						int before, int count) {
+				}
+
+				@Override
+				public void beforeTextChanged(CharSequence s, int start,
+						int count, int after) {
+				}
+
+				@Override
+				public void afterTextChanged(Editable s) {
+					if (s.length() > 0) {
+						mSubmitButton.setEnabled(true);
+					} else {
+						mSubmitButton.setEnabled(false);
+					}
+				}
+			});
 		}
 
+		fillListview();
+	}
+
+	private void fillListview() {
+		List<Map<String, String>> highscoreList = mDatabaseOpenHelper
+				.getAllHighscores();
+
+		SimpleAdapter simpleAdapter = new SimpleAdapter(this, highscoreList,
+				android.R.layout.simple_list_item_2, new String[] {
+						DatabaseOpenHelper.KEY_NAME,
+						DatabaseOpenHelper.KEY_TIME }, new int[] {
+						android.R.id.text2, android.R.id.text1 });
+
+		mListView.setAdapter(simpleAdapter);
 	}
 }

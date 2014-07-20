@@ -17,6 +17,17 @@ import android.view.View;
  * @see SystemUiHider
  */
 public class PlayActivity extends Activity {
+	/**
+	 * Whether or not the system UI should be auto-hidden after
+	 * {@link #AUTO_HIDE_DELAY_MILLIS} milliseconds.
+	 */
+	private static final boolean AUTO_HIDE = true;
+
+	/**
+	 * If {@link #AUTO_HIDE} is set, the number of milliseconds to wait after
+	 * user interaction before hiding the system UI.
+	 */
+	private static final int AUTO_HIDE_DELAY_MILLIS = 2500;
 
 	/**
 	 * The flags to pass to {@link SystemUiHider#getInstance}.
@@ -47,8 +58,8 @@ public class PlayActivity extends Activity {
 		mSystemUiHider
 				.setOnVisibilityChangeListener(new SystemUiHider.OnVisibilityChangeListener() {
 					// Cached values.
-					int mControlsHeight;
-					int mShortAnimTime;
+					int controlsHeight = 0;
+					int shortAnimTime = 0;
 
 					@Override
 					@TargetApi(Build.VERSION_CODES.HONEYCOMB_MR2)
@@ -58,23 +69,26 @@ public class PlayActivity extends Activity {
 							// (Honeycomb MR2 and later), use it to animate the
 							// in-layout UI controls at the bottom of the
 							// screen.
-							if (mControlsHeight == 0) {
-								mControlsHeight = controlsView.getHeight();
+							if (controlsHeight == 0) {
+								controlsHeight = controlsView.getHeight();
 							}
-							if (mShortAnimTime == 0) {
-								mShortAnimTime = getResources().getInteger(
+							if (shortAnimTime == 0) {
+								shortAnimTime = getResources().getInteger(
 										android.R.integer.config_shortAnimTime);
 							}
-							controlsView
-									.animate()
-									.translationY(visible ? 0 : mControlsHeight)
-									.setDuration(mShortAnimTime);
+							controlsView.animate()
+									.translationY(visible ? 0 : controlsHeight)
+									.setDuration(shortAnimTime);
 						} else {
 							// If the ViewPropertyAnimator APIs aren't
 							// available, simply show or hide the in-layout UI
 							// controls.
 							controlsView.setVisibility(visible ? View.VISIBLE
 									: View.GONE);
+						}
+						if (visible && AUTO_HIDE) {
+							// Schedule a hide().
+							delayedHide(AUTO_HIDE_DELAY_MILLIS);
 						}
 					}
 				});

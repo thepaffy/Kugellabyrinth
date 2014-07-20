@@ -14,19 +14,19 @@ import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.SimpleAdapter;
 import android.widget.TextView;
 
 public class HighscoreActivity extends Activity {
 
+	/** Log tag constant */
 	@SuppressWarnings("unused")
 	private static final String TAG = "HighscoreActivity";
 
+	/** Key constant for last name */
 	private static final String KEY_LAST_NAME = "lastname";
 
-	private LinearLayout mInputLayout;
 	private EditText mNameEdit;
 	private TextView mTimeView;
 	private Button mSubmitButton;
@@ -41,7 +41,6 @@ public class HighscoreActivity extends Activity {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_highscore);
 
-		mInputLayout = (LinearLayout) findViewById(R.id.inputLayout);
 		mNameEdit = (EditText) findViewById(R.id.nameEdit);
 		mTimeView = (TextView) findViewById(R.id.timeView);
 		mSubmitButton = (Button) findViewById(R.id.nameSubmit);
@@ -52,15 +51,17 @@ public class HighscoreActivity extends Activity {
 		mDatabaseOpenHelper = new DatabaseOpenHelper(this);
 
 		Intent intent = getIntent();
-		if (intent.hasExtra(Kugel.TIME)) {
-			long playTime = intent.getLongExtra(Kugel.TIME, 0);
-			mInputLayout.setVisibility(View.VISIBLE);
-			mSubmitButton.setVisibility(View.VISIBLE);
+		if (intent.hasExtra(Kugel.KEY_TIME)) {
+			long playTime = intent.getLongExtra(Kugel.KEY_TIME, 0);
 			long secs = playTime % 60;
 			long mins = (playTime - secs) / 60;
 			mTimeView.setText(mins + ":" + secs);
 			mNameEdit.setEnabled(true);
-			mNameEdit.setText(mSharedPreferences.getString(KEY_LAST_NAME, ""));
+			if (mSharedPreferences.contains(KEY_LAST_NAME)) {
+				mNameEdit.setText(mSharedPreferences.getString(KEY_LAST_NAME,
+						""));
+				mSubmitButton.setEnabled(true);
+			}
 
 			mSubmitButton.setOnClickListener(new OnClickListener() {
 

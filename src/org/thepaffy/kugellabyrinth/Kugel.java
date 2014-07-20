@@ -16,13 +16,16 @@ import android.hardware.SensorManager;
 import android.os.Vibrator;
 import android.view.SurfaceHolder;
 
-public class Kugel implements SensorEventListener {
+public class Kugel implements SensorEventListener, Runnable {
 
+	/** Log tag constant */
 	@SuppressWarnings("unused")
 	private static final String TAG = "Kugel";
 
-	public static final String TIME = "TIME";
+	/** Key constant for time */
+	public static final String KEY_TIME = "TIME";
 
+	/** Duration constant for vibration */
 	private static final long VIB_DURATION = 200;
 
 	/** x of the ball center */
@@ -35,9 +38,9 @@ public class Kugel implements SensorEventListener {
 	/** y speed of the ball */
 	private double mVy = 0;
 
-	/** current x accel */
+	/** x accel of the ball */
 	private double mAx = 0;
-	/** current y accel */
+	/** y accel of the ball */
 	private double mAy = 0;
 
 	/** last loop time */
@@ -45,30 +48,51 @@ public class Kugel implements SensorEventListener {
 	/** start time */
 	private long mStartTime;
 
+	/** Handle to the application context, used to e.g. fetch Drawables. */
 	private Context mContext;
+	/** Handle to the surface manager object we interact with */
 	private SurfaceHolder mSurfaceHolder;
 
+	/** The drawable of the Kugel */
 	private Drawable mKugelImage;
+	/** Pixel width of the Kugel */
 	private int mKugelWidth;
+	/** Pixel heigth of the Kugel */
 	private int mKugelHeight;
+	/** Radius of the Kugel as average of width and height */
 	private int mKugelRadius;
 
+	/** The drawable to use as the background of the animation canvas */
 	private Bitmap mBackgroundImage;
+	/** Current width of the surface/canvas */
 	private int mCanvasWidth = 1;
+	/** Current height of the surface/canvas */
 	private int mCanvasHeight = 1;
 
+	/** Run variable */
 	private boolean mRun = false;
+	/** Syncro lock for mRun */
 	private Object mRunLock = new Object();
-
+	/** Pause variable */
 	private boolean mPause = false;
 
+	/** Sensormanager for accelerometer */
 	private SensorManager mSensorManager;
+	/** Accelerometer */
 	private Sensor mSensor;
 
+	/** Vibrator */
 	private Vibrator mVibrator;
 
+	/**  */
 	private ArrayList<Baulk> mBaulkList;
 
+	/**
+	 * Constructor
+	 * 
+	 * @param context
+	 * @param surfaceHolder
+	 */
 	public Kugel(Context context, SurfaceHolder surfaceHolder) {
 		mContext = context;
 		mSurfaceHolder = surfaceHolder;
@@ -92,7 +116,8 @@ public class Kugel implements SensorEventListener {
 		mBaulkList = new ArrayList<Baulk>(0);
 	}
 
-	public void process() {
+	@Override
+	public void run() {
 		doStart();
 		while (mRun) {
 			while (mPause && mRun) {
@@ -126,7 +151,7 @@ public class Kugel implements SensorEventListener {
 		}
 	}
 
-	public void pause(boolean b) {
+	public void setPaused(boolean b) {
 		synchronized (mSurfaceHolder) {
 			if (!b) {
 				mLastTime = System.currentTimeMillis();
@@ -139,6 +164,7 @@ public class Kugel implements SensorEventListener {
 		return mPause;
 	}
 
+	/** Restarts the game */
 	public void restart() {
 		synchronized (mSurfaceHolder) {
 			mPause = true;
@@ -149,10 +175,12 @@ public class Kugel implements SensorEventListener {
 			mX = mKugelWidth / 2 + 5;
 			mY = mKugelHeight / 2 + 5;
 			mStartTime = System.currentTimeMillis();
+			mLastTime = System.currentTimeMillis();
 			mPause = false;
 		}
 	}
 
+	/** Handle surfacesize change */
 	public void setSurfaceSize(int width, int height) {
 		synchronized (mSurfaceHolder) {
 			mCanvasWidth = width;
@@ -164,12 +192,14 @@ public class Kugel implements SensorEventListener {
 		}
 	}
 
+	/** Handle event from sensormanager */
 	@Override
 	public void onSensorChanged(SensorEvent event) {
 		// Swap the axis because landscape
 		double aY = event.values[0];
 		double aX = event.values[1];
 
+		// Prevent the Kugel from alone begins to roll
 		if (Math.abs(aX) < 0.5 && Math.abs(mVx) == 0) {
 			mAx = 0;
 		} else {
@@ -185,8 +215,6 @@ public class Kugel implements SensorEventListener {
 
 	@Override
 	public void onAccuracyChanged(Sensor sensor, int accuracy) {
-		// TODO Auto-generated method stub
-
 	}
 
 	public int x() {
@@ -206,6 +234,7 @@ public class Kugel implements SensorEventListener {
 	}
 
 	public void reflectX() {
+		// Reset the Kugel from the baulk
 		mX = mX + (mVx / -Math.abs(mVx));
 		mVx *= -0.25;
 		mVibrator.vibrate(VIB_DURATION);
@@ -217,12 +246,12 @@ public class Kugel implements SensorEventListener {
 		mVibrator.vibrate(VIB_DURATION);
 	}
 
-	public void inHole(boolean end) {
+	public void inHole(boolean win) {
 		long now = System.currentTimeMillis();
 		long playTime = (now - mStartTime) / 1000;
-		if (end) {
+		if (win) {
 			Intent intent = new Intent(mContext, HighscoreActivity.class);
-			intent.putExtra(TIME, playTime);
+			intent.putExtra(KEY_TIME, playTime);
 			mContext.startActivity(intent);
 			mRun = false;
 		} else {
@@ -248,6 +277,15 @@ public class Kugel implements SensorEventListener {
 
 		double elapsed = (now - mLastTime) / 1000.0;
 
+		// s = s_0 + v_0*t + 0.5*a*t^2
+		mX = mX + mVx * elapsed + 0.5 * mAx * elapsed * elapsed;
+		mY = mY + mVy * elapsed + 0.5 * mAy * elapsed * elapsed;
+
+		// Save current speed for next round
+		// v = v_0 + a*t
+		mVx = mVx + mAx * elapsed;
+		mVy = mVy + mAy * elapsed;
+
 		// Canvas borders
 		if (mX - mKugelWidth / 2 <= 0 || mX + mKugelWidth / 2 >= mCanvasWidth) {
 			reflectX();
@@ -260,13 +298,6 @@ public class Kugel implements SensorEventListener {
 		for (int i = 0; i < mBaulkList.size(); i++) {
 			mBaulkList.get(i).calcDistance(this);
 		}
-
-		mX = mX + mVx * elapsed + 0.5 * mAx * elapsed * elapsed;
-		mY = mY + mVy * elapsed + 0.5 * mAy * elapsed * elapsed;
-
-		// Save current speed for next round
-		mVx = mVx + mAx * elapsed;
-		mVy = mVy + mAy * elapsed;
 
 		// Log.d(TAG, "Ax: " + mAx + ", Ay: " + mAy + "\nVx: " + mVx + ", Vy: "
 		// + mVy);
